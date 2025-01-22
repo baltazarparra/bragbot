@@ -26,19 +26,27 @@ def webhook():
     """
     Rota para receber as mensagens do WhatsApp.
     """
-    # Recebe os dados do WhatsApp
-    data = request.get_json()
+    try:
+        # Recebe os dados do WhatsApp
+        data = request.get_json()
 
-    # Extrai o número do remetente e o conteúdo da mensagem
-    user_number = data["entry"][0]["changes"][0]["value"]["messages"][0]["from"]
-    user_message = data["entry"][0]["changes"][0]["value"]["messages"][0]["text"]["body"]
+        # Verifica se a mensagem é válida
+        if not data or "entry" not in data:
+            return "Dados inválidos", 400
 
-    # Exibe os dados no terminal (para depuração)
-    print(f"Número do usuário: {user_number}")
-    print(f"Mensagem recebida: {user_message}")
+        # Extrai o número do remetente e o conteúdo da mensagem
+        user_number = data["entry"][0]["changes"][0]["value"]["messages"][0]["from"]
+        user_message = data["entry"][0]["changes"][0]["value"]["messages"][0]["text"]["body"]
 
-    # Responde ao WhatsApp com status 200 (sucesso)
-    return "ok", 200
+        # Exibe os dados no terminal (para depuração)
+        print(f"Número do usuário: {user_number}")
+        print(f"Mensagem recebida: {user_message}")
+
+        # Responde ao WhatsApp com status 200 (sucesso)
+        return "ok", 200
+    except Exception as e:
+        print(f"Erro ao processar mensagem: {e}")
+        return "Erro interno", 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000)
