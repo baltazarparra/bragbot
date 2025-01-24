@@ -67,5 +67,5 @@ def send_message(to, message):
     if response.status_code != 200:
         logger.error(f"Erro ao enviar mensagem: {response.status_code} - {response.text}")
     else:
-        logger.info("Mensagem enviada com sucesso.")
+        logger.info("Mensagem enviada com sucesso!")
     return response.json()
