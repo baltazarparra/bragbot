@@ -51,17 +51,20 @@ def webhook():
         return "Erro interno", 500
 
 def send_message(to, message):
-    url = f"https://graph.facebook.com/v13.0/{to}/messages"
+    logger.debug(f"Enviando mensagem para {to}: {message}")
+    url = "https://graph.facebook.com/v13.0/messages"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
     }
     data = {
+        "recipient": {"id": to},  # Inclua o objeto recipient
         "messaging_product": "whatsapp",
-        "to": to,
         "text": {"body": message}
     }
     response = requests.post(url, json=data, headers=headers)
     if response.status_code != 200:
         logger.error(f"Erro ao enviar mensagem: {response.status_code} - {response.text}")
+    else:
+        logger.info("Mensagem enviada com sucesso.")
     return response.json()
