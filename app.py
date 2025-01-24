@@ -18,6 +18,7 @@ ACCESS_TOKEN = os.getenv('ACCESS_TOKEN')
 
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
+    logger.info("Recebida uma solicitação GET no webhook")
     token_recebido = request.args.get("hub.verify_token")
     if token_recebido == VERIFY_TOKEN:
         return request.args.get("hub.challenge"), 200
@@ -27,8 +28,10 @@ def verify_webhook():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
+    logger.info("Recebida uma solicitação POST no webhook")
     try:
         data = request.get_json()
+        logger.info(f"Dados recebidos: {data}")
         if not data or "entry" not in data:
             logger.error("Dados inválidos recebidos")
             return "Dados inválidos", 400
