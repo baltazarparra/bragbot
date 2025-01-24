@@ -52,14 +52,16 @@ def webhook():
 
 def send_message(to, message):
     logger.debug(f"Enviando mensagem para {to}: {message}")
-    url = "https://graph.facebook.com/v13.0/messages"
+    # URL correta para enviar mensagens via WhatsApp API
+    url = "https://graph.facebook.com/v22.0/me/messages"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
     }
     data = {
-        "recipient": {"id": to},  # Inclua o objeto recipient
         "messaging_product": "whatsapp",
+        "to": to,
+        "type": "text",
         "text": {"body": message}
     }
     response = requests.post(url, json=data, headers=headers)
@@ -67,4 +69,4 @@ def send_message(to, message):
         logger.error(f"Erro ao enviar mensagem: {response.status_code} - {response.text}")
     else:
         logger.info("Mensagem enviada com sucesso.")
-    return response.json()
+    
