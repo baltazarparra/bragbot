@@ -1,49 +1,51 @@
 from flask import Flask, request
+import requests
 
 app = Flask(__name__)
 
-# Defina o token de verificação
+# Defina o token de verificação e o token de acesso
 VERIFY_TOKEN = "meu_token_secreto_123!@#"
+ACCESS_TOKEN = "seu_access_token_aqui"  # Substitua pelo seu token de acesso do Facebook
 
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
-    """
-    Rota para verificar o webhook com o Facebook.
-    """
-    # O Facebook envia um parâmetro 'hub.verify_token' na requisição GET
     token_recebido = request.args.get("hub.verify_token")
-
-    # Verifica se o token recebido é igual ao token definido
     if token_recebido == VERIFY_TOKEN:
-        # Retorna o desafio (challenge) enviado pelo Facebook
         return request.args.get("hub.challenge"), 200
     else:
-        # Retorna um erro se o token for inválido
         return "Token de verificação inválido", 403
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    """
-    Rota para receber as mensagens do WhatsApp.
-    """
     try:
-        # Recebe os dados do WhatsApp
         data = request.get_json()
-
-        # Verifica se a mensagem é válida
         if not data or "entry" not in data:
             return "Dados inválidos", 400
 
-        # Extrai o número do remetente e o conteúdo da mensagem
         user_number = data["entry"][0]["changes"][0]["value"]["messages"][0]["from"]
         user_message = data["entry"][0]["changes"][0]["value"]["messages"][0]["text"]["body"]
 
-        # Exibe os dados no terminal (para depuração)
         print(f"Número do usuário: {user_number}")
         print(f"Mensagem recebida: {user_message}")
 
-        # Responde ao WhatsApp com status 200 (sucesso)
+        response_message = "Obrigado pela sua mensagem! Estamos processando sua solicitação."
+        send_message(user_number, response_message)
+
         return "ok", 200
     except Exception as e:
         print(f"Erro ao processar mensagem: {e}")
         return "Erro interno", 500
+
+def send_message(to, message):
+    url = f"https://graph.facebook.com/v13.0/{to}/messages"
+    headers = {
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "text": {"body": message}
+    }
+    response = requests.post(url, json=data, headers=headers)
+    return response.json()
