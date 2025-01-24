@@ -69,4 +69,4 @@ def send_message(to, message):
         logger.error(f"Erro ao enviar mensagem: {response.status_code} - {response.text}")
     else:
         logger.info("Mensagem enviada com sucesso.")
-    
+    return response.json()
