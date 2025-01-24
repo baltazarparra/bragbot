@@ -69,4 +69,3 @@ def send_message(to, message):
     else:
         logger.info("Mensagem enviada com sucesso.")
     return response.json()
-
