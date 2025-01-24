@@ -59,8 +59,9 @@ def send_message(to, message):
     }
     data = {
         "messaging_product": "whatsapp",
-        "recipient": {"id": to},  # Inclua o objeto recipient
-        "message": {"text": {"body": message}}
+        "to": to,
+        "type": "text",
+        "text": {"body": message}
     }
     response = requests.post(url, json=data, headers=headers)
     if response.status_code != 200:
@@ -68,6 +69,4 @@ def send_message(to, message):
     else:
         logger.info("Mensagem enviada com sucesso.")
     return response.json()
-
-
 
