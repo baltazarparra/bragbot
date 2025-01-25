@@ -47,3 +47,6 @@ def webhook():
     except Exception as e:
         print(f"Erro ao processar mensagem: {e}")
         return "Erro interno", 500
+    
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5000)
