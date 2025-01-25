@@ -7,8 +7,7 @@
   },
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js",
-    "build": "npm install --force"
+    "build": "npm install"
   },
   "repository": {
     "type": "git",
