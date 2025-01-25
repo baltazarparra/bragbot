@@ -2,10 +2,6 @@
   "name": "bragbot",
   "version": "1.0.0",
   "type": "module",
-  "scripts": {
-    "start": "node index.js",
-    "postinstall": "npm i"
-  },
   "dependencies": {
     "express": "^4.21.2",
     "dotenv": "^16.4.7"
