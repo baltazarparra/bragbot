@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "build": "npm i"
+    "postinstall": "npm i"
   },
   "dependencies": {
     "express": "^4.21.2",
