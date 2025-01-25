@@ -1,71 +1,84 @@
-import os
 import logging
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
-import requests
 
-# Carregar as variáveis de ambiente do arquivo .env
-load_dotenv()
-
+# Configuração inicial
+load_dotenv()  # Carrega variáveis do .env
 app = Flask(__name__)
 
-# Configurar logging
+# Configuração de logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('WhatsApp-Bot')
 
-VERIFY_TOKEN = os.getenv('VERIFY_TOKEN')
-ACCESS_TOKEN = os.getenv('ACCESS_TOKEN')
+# Variáveis de ambiente
+VERIFY_TOKEN = "meu_token_secreto_123!@#"
+ACCESS_TOKEN = "EAAI0zpTDkWcBO8na42qhaSMRG6rWPq5fPIXx35moKFeeiUQefuN6p8p1lZAScaFCqSu5cdoYPaF4yyPn0Ca5xKCA9oASefjgii2NWWA2XzvzPczcwTC2TpZCPsDuteNfmJjh2BGsiaNMbsxQkZCPfl6aiO83k7Tor8ai717kb0LCqBr25ZAN52XVwdubTmZA7N84sYCRwCJ1m83lR5xgED4srCWHjo6DvbjTTdUCW6P68uEO2UVEZD"
 
-@app.route("/webhook", methods=["GET"])
+@app.route('/webhook', methods=['GET'])
 def verify_webhook():
-    logger.info("Recebida uma solicitação GET no webhook")
-    token_recebido = request.args.get("hub.verify_token")
-    if token_recebido == VERIFY_TOKEN:
-        return request.args.get("hub.challenge"), 200
-    else:
-        logger.error("Token de verificação inválido")
-        return "Token de verificação inválido", 403
-
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    logger.info("Recebida uma solicitação POST no webhook")
+    """
+    Endpoint de verificação do webhook exigido pelo WhatsApp
+    """
     try:
-        data = request.get_json()
-        logger.info(f"Dados recebidos: {data}")
-        if not data or "entry" not in data:
-            logger.error("Dados inválidos recebidos")
-            return "Dados inválidos", 400
+        # Recebe parâmetros da requisição
+        mode = request.args.get('hub.mode')
+        token = request.args.get('hub.verify_token')
+        challenge = request.args.get('hub.challenge')
 
-        user_number = data["entry"][0]["changes"][0]["value"]["messages"][0]["from"]
-        user_message = data["entry"][0]["changes"][0]["value"]["messages"][0]["text"]["body"]
+        logger.info(f"Tentativa de verificação - Mode: {mode}, Token: {token}")
 
-        logger.info(f"Número do usuário: {user_number}")
-        logger.info(f"Mensagem recebida: {user_message}")
+        # Verifica o token e o modo
+        if mode == "subscribe" and token == VERIFY_TOKEN:
+            logger.info("Verificação bem-sucedida!")
+            return challenge, 200
+        else:
+            logger.warning("Falha na verificação - Token ou modo inválido")
+            return "Verificação falhou", 403
 
-        response_message = "Obrigado pela sua mensagem! Estamos processando sua solicitação."
-        send_message(user_number, response_message)
-
-        return "ok", 200
     except Exception as e:
-        logger.error(f"Erro ao processar mensagem: {e}", exc_info=True)
-        return "Erro interno", 500
+        logger.error(f"Erro na verificação: {str(e)}")
+        return "Erro no servidor", 500
 
-def send_message(to, message):
-    logger.debug(f"Enviando mensagem para {to}: {message}")
-    url = "https://graph.facebook.com/v22.0/me/messages"
-    headers = {
-        "Authorization": f"Bearer {ACCESS_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "messaging_product": "whatsapp",
-        "to": to,
-        "type": "text",
-        "text": {"body": message}
-    }
-    response = requests.post(url, json=data, headers=headers)
-    if response.status_code != 200:
-        logger.error(f"Erro ao enviar mensagem: {response.status_code} - {response.text}")
-    else:
-        logger.info("Mensagem enviada com sucesso!")
-    return response.json()
+@app.route('/webhook', methods=['POST'])
+def handle_messages():
+    """
+    Endpoint principal para receber mensagens do WhatsApp
+    """
+    try:
+        # Processa a notificação
+        data = request.get_json()
+        logger.info(f"Payload recebido: {data}")
+
+        # Verifica estrutura básica do payload
+        if not data or 'entry' not in data:
+            logger.error("Estrutura de dados inválida")
+            return jsonify({"status": "error", "message": "Invalid payload"}), 400
+
+        # Extrai informações básicas
+        entry = data['entry'][0]
+        changes = entry.get('changes', [{}])[0]
+        value = changes.get('value', {})
+        contacts = value.get('contacts', [{}])[0]
+        
+        # Dados da mensagem
+        user_number = contacts.get('wa_id', 'N/A')
+        message_data = value.get('messages', [{}])[0]
+        
+        if message_data.get('type') != 'text':
+            logger.info("Mensagem não textual recebida, ignorando")
+            return jsonify({"status": "ignored"}), 200
+
+        # Mensagem de texto
+        message_body = message_data.get('text', {}).get('body', '')
+        logger.info(f"Nova mensagem de {user_number}: {message_body}")
+
+        # Aqui você pode adicionar lógica de processamento posteriormente
+
+        return jsonify({"status": "success"}), 200
+
+    except Exception as e:
+        logger.error(f"Erro ao processar mensagem: {str(e)}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
