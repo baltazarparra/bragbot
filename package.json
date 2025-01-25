@@ -1,29 +1,12 @@
 {
   "name": "bragbot",
   "version": "1.0.0",
-  "main": "index.js",
-  "engines": {
-    "node": "22.x"
-  },
+  "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "build": "npm install"
+    "start": "node index.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/baltazarparra/bragbot.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/baltazarparra/bragbot/issues"
-  },
-  "homepage": "https://github.com/baltazarparra/bragbot#readme",
-  "description": "",
   "dependencies": {
-    "dotenv": "^16.4.7",
-    "express": "^4.18.2"
+    "express": "^4.21.2",
+    "dotenv": "^16.4.7"
   }
 }
