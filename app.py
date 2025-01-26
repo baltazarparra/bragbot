@@ -1,3 +1,4 @@
+import datetime
 from flask import Flask, request, jsonify
 from database import connect_db
 
@@ -29,20 +30,20 @@ def criar_usuario(identificador):
     cur.close()
     conn.close()
 
-def salvar_mensagem(identificador, mensagem):
+def salvar_mensagem(identificador, texto_mensagem, data_envio):
     # Crie o usuário se ele não existir
     criar_usuario(identificador)
     
     # Conecta ao banco de dados
     conn = connect_db()
     if conn is None:
-        return "Erro ao conectar ao banco de dados", 500
+        return
 
     # Cria um cursor para executar queries
     cur = conn.cursor()
 
     # Salve a mensagem
-    cur.execute("INSERT INTO mensagens (identificador, texto_mensagem) VALUES (%s, %s)", (identificador, mensagem))
+    cur.execute("INSERT INTO mensagens (identificador, texto_mensagem, data_envio) VALUES (%s, %s, %s)", (identificador, texto_mensagem, data_envio))
     conn.commit()
     print(f"Mensagem de {identificador} salva com sucesso!")
 
@@ -73,17 +74,21 @@ def webhook():
         if "entry" in data and "changes" in data["entry"][0]:
             if "value" in data["entry"][0]["changes"][0]:
                 value = data["entry"][0]["changes"][0]["value"]
-                if "statuses" in value:
+                if "messages" in value:
+                    mensagem = value["messages"][0]
+                    identificador = mensagem["from"]
+                    texto_mensagem = mensagem["text"]["body"]
+                    data_envio = mensagem["timestamp"]
+                    data_envio = datetime.datetime.fromtimestamp(data_envio).strftime("%d/%m/%Y")
+                    salvar_mensagem(identificador, texto_mensagem, data_envio)
+                elif "statuses" in value:
                     for status in value["statuses"]:
                         if "recipient_id" in status:
                             identificador = status["recipient_id"]
-                            mensagem = "Mensagem de status recebida"
-                            salvar_mensagem(identificador, mensagem)
-                elif "messages" in value:
-                    mensagem = value["messages"][0]
-                    identificador = mensagem["from"]
-                    mensagem = mensagem["text"]["body"]
-                    salvar_mensagem(identificador, mensagem)
+                            texto_mensagem = "Mensagem de status recebida"
+                            data_envio = status["timestamp"]
+                            data_envio = datetime.datetime.fromtimestamp(data_envio).strftime("%d/%m/%Y")
+                            salvar_mensagem(identificador, texto_mensagem, data_envio)
         return "ok", 200
     except Exception as e:
         print(f"Erro ao processar mensagem: {e}")
