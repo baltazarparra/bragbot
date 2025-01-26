@@ -71,6 +71,7 @@ def webhook():
     try:
         # Recebe os dados do WhatsApp
         data = request.get_json()
+        print(data)
 
         # Verifica se a mensagem é válida
         if not data or "entry" not in data:
