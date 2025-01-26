@@ -1,11 +1,54 @@
-from flask import Flask, request
-
+from flask import Flask, request, jsonify
 from database import connect_db
 
 app = Flask(__name__)
 
 # Defina o token de verificação
 VERIFY_TOKEN = "meu_token_secreto_123!@#"
+
+def criar_usuario(identificador):
+    # Conecta ao banco de dados
+    conn = connect_db()
+    if conn is None:
+        return "Erro ao conectar ao banco de dados", 500
+
+    # Cria um cursor para executar queries
+    cur = conn.cursor()
+
+    # Verifique se o usuário já existe
+    cur.execute("SELECT * FROM usuarios WHERE identificador = %s", (identificador,))
+    if cur.fetchone() is None:
+        # Crie o usuário
+        cur.execute("INSERT INTO usuarios (identificador) VALUES (%s)", (identificador,))
+        conn.commit()
+        print(f"Usuário {identificador} criado com sucesso!")
+    else:
+        print(f"Usuário {identificador} já existe.")
+
+    # Fecha o cursor e a conexão
+    cur.close()
+    conn.close()
+
+def salvar_mensagem(identificador, mensagem):
+    # Crie o usuário se ele não existir
+    criar_usuario(identificador)
+    
+    # Conecta ao banco de dados
+    conn = connect_db()
+    if conn is None:
+        return "Erro ao conectar ao banco de dados", 500
+
+    # Cria um cursor para executar queries
+    cur = conn.cursor()
+
+    # Salve a mensagem
+    cur.execute("INSERT INTO mensagens (identificador, texto_mensagem) VALUES (%s, %s)", (identificador, mensagem))
+    conn.commit()
+    print(f"Mensagem de {identificador} salva com sucesso!")
+
+    # Fecha o cursor e a conexão
+    cur.close()
+    conn.close()
 
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
@@ -34,26 +77,11 @@ def webhook():
             return "Dados inválidos", 400
 
         # Extrai o número do remetente e o conteúdo da mensagem
-        user_number = data["entry"][0]["changes"][0]["value"]["messages"][0]["from"]
-        user_message = data["entry"][0]["changes"][0]["value"]["messages"][0]["text"]["body"]
+        identificador = data["entry"][0]["changes"][0]["value"]["messages"][0]["from"]
+        mensagem = data["entry"][0]["changes"][0]["value"]["messages"][0]["text"]["body"]
 
-        # Conecta ao banco de dados
-        conn = connect_db()
-        if conn is None:
-            return "Erro ao conectar ao banco de dados", 500
-
-        # Cria um cursor para executar queries
-        cur = conn.cursor()
-
-        # Insere os dados no banco de dados
-        cur.execute("INSERT INTO mensagens (numero_remetente, mensagem) VALUES (%s, %s)", (user_number, user_message))
-
-        # Commita as alterações
-        conn.commit()
-
-        # Fecha o cursor e a conexão
-        cur.close()
-        conn.close()
+        # Salva a mensagem
+        salvar_mensagem(identificador, mensagem)
 
         # Responde ao WhatsApp com status 200 (sucesso)
         return "ok", 200

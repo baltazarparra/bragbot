@@ -26,3 +26,33 @@ def connect_db():
     except psycopg2.Error as e:
         print(f"Erro ao conectar ao banco de dados: {e}")
         return None
+
+def criar_tabelas():
+    conn = connect_db()
+    if conn is None:
+        return
+
+    cur = conn.cursor()
+
+    # Cria a tabela de usuários
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS usuarios (
+            identificador VARCHAR(20) PRIMARY KEY
+        );
+    """)
+
+    # Cria a tabela de mensagens
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS mensagens (
+            id_mensagem SERIAL PRIMARY KEY,
+            identificador VARCHAR(20) REFERENCES usuarios(identificador),
+            texto_mensagem TEXT NOT NULL,
+            data_envio TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+criar_tabelas()
