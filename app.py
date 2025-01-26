@@ -69,22 +69,21 @@ def verify_webhook():
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
-        # Recebe os dados do WhatsApp
         data = request.get_json()
-        print(data)
-
-        # Verifica se a mensagem é válida
-        if not data or "entry" not in data:
-            return "Dados inválidos", 400
-
-        # Extrai o número do remetente e o conteúdo da mensagem
-        identificador = data["entry"][0]["changes"][0]["value"]["messages"][0]["from"]
-        mensagem = data["entry"][0]["changes"][0]["value"]["messages"][0]["text"]["body"]
-
-        # Salva a mensagem
-        salvar_mensagem(identificador, mensagem)
-
-        # Responde ao WhatsApp com status 200 (sucesso)
+        if "entry" in data and "changes" in data["entry"][0]:
+            if "value" in data["entry"][0]["changes"][0]:
+                value = data["entry"][0]["changes"][0]["value"]
+                if "statuses" in value:
+                    for status in value["statuses"]:
+                        if "recipient_id" in status:
+                            identificador = status["recipient_id"]
+                            mensagem = "Mensagem de status recebida"
+                            salvar_mensagem(identificador, mensagem)
+                elif "messages" in value:
+                    mensagem = value["messages"][0]
+                    identificador = mensagem["from"]
+                    mensagem = mensagem["text"]["body"]
+                    salvar_mensagem(identificador, mensagem)
         return "ok", 200
     except Exception as e:
         print(f"Erro ao processar mensagem: {e}")
