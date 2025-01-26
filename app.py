@@ -1,5 +1,7 @@
 from flask import Flask, request
 
+from database import connect_db
+
 app = Flask(__name__)
 
 # Defina o token de verificação
@@ -23,9 +25,6 @@ def verify_webhook():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    """
-    Rota para receber as mensagens do WhatsApp.
-    """
     try:
         # Recebe os dados do WhatsApp
         data = request.get_json()
@@ -38,9 +37,23 @@ def webhook():
         user_number = data["entry"][0]["changes"][0]["value"]["messages"][0]["from"]
         user_message = data["entry"][0]["changes"][0]["value"]["messages"][0]["text"]["body"]
 
-        # Exibe os dados no terminal (para depuração)
-        print(f"Número do usuário: {user_number}")
-        print(f"Mensagem recebida: {user_message}")
+        # Conecta ao banco de dados
+        conn = connect_db()
+        if conn is None:
+            return "Erro ao conectar ao banco de dados", 500
+
+        # Cria um cursor para executar queries
+        cur = conn.cursor()
+
+        # Insere os dados no banco de dados
+        cur.execute("INSERT INTO mensagens (numero_remetente, mensagem) VALUES (%s, %s)", (user_number, user_message))
+
+        # Commita as alterações
+        conn.commit()
+
+        # Fecha o cursor e a conexão
+        cur.close()
+        conn.close()
 
         # Responde ao WhatsApp com status 200 (sucesso)
         return "ok", 200
