@@ -78,16 +78,16 @@ def webhook():
                     mensagem = value["messages"][0]
                     identificador = mensagem["from"]
                     texto_mensagem = mensagem["text"]["body"]
-                    data_envio = int(mensagem["timestamp"])  # converte para inteiro
-                    data_envio = datetime.datetime.fromtimestamp(data_envio).strftime("%d/%m/%Y")
+                    data_envio = int(mensagem["timestamp"])
+                    data_envio = datetime.datetime.fromtimestamp(data_envio).strftime("%Y-%m-%d")  # altera o formato da data
                     salvar_mensagem(identificador, texto_mensagem, data_envio)
                 elif "statuses" in value:
                     for status in value["statuses"]:
                         if "recipient_id" in status:
                             identificador = status["recipient_id"]
                             texto_mensagem = "Mensagem de status recebida"
-                            data_envio = int(status["timestamp"])  # converte para inteiro
-                            data_envio = datetime.datetime.fromtimestamp(data_envio).strftime("%d/%m/%Y")
+                            data_envio = int(status["timestamp"])
+                            data_envio = datetime.datetime.fromtimestamp(data_envio).strftime("%Y-%m-%d")  # altera o formato da data
                             salvar_mensagem(identificador, texto_mensagem, data_envio)
         return "ok", 200
     except Exception as e:
