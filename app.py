@@ -20,7 +20,7 @@ async def webhook():
         return challenge if token == VERIFY_TOKEN else "Token inválido", 403
 
     try:
-        data = request.get_json()
+        data = await request.get_json()
         entry = data.get('entry', [{}])[0]
         changes = entry.get('changes', [{}])[0]
         value = changes.get('value', {})
