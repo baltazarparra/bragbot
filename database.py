@@ -1,3 +1,4 @@
+import datetime
 import os
 from dotenv import load_dotenv
 import psycopg2
@@ -74,20 +75,23 @@ def get_user_messages(phone_number):
         if conn:
             conn.close()
 
-def save_message(sender, text):
-    """Salva uma nova mensagem no banco"""
+def save_message(sender: str, text: str, received_at: datetime = None):
+    """Salva uma nova mensagem no banco de dados"""
     try:
         conn = get_connection()
         with conn.cursor() as cur:
             cur.execute('''
-                INSERT INTO messages (sender_number, message_text)
-                VALUES (%s, %s)
-            ''', (sender, text))
+                INSERT INTO messages (sender_number, message_text, received_at)
+                VALUES (%s, %s, %s)
+            ''', (
+                sender, 
+                text,
+                received_at or datetime.datetime.now()  # Valor padrão se não fornecido
+            ))
             conn.commit()
             print(f"✅ Mensagem de {sender} salva!")
-            
     except Exception as e:
-        print(f"❌ Erro ao salvar: {str(e)}")
+        print(f"❌ Erro ao salvar mensagem: {str(e)}")
         conn.rollback()
     finally:
         if conn:
