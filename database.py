@@ -2,57 +2,102 @@ import os
 from dotenv import load_dotenv
 import psycopg2
 
-# Carregue as variáveis de ambiente do arquivo .env
 load_dotenv()
 
-# Acesse as variáveis de ambiente
-DB_HOST = os.getenv('DB_HOST')
-DB_PORT = os.getenv('DB_PORT')
-DB_NAME = os.getenv('DB_NAME')
-DB_USER = os.getenv('DB_USER')
-DB_PASSWORD = os.getenv('DB_PASSWORD')
-
-# Conecte ao banco de dados
-def connect_db():
+def get_connection():
+    """Cria e retorna uma conexão segura com o banco de dados"""
     try:
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
+        return psycopg2.connect(
+            host=os.getenv('DB_HOST'),
+            port=os.getenv('DB_PORT'),
+            dbname=os.getenv('DB_NAME'),
+            user=os.getenv('DB_USER'),
+            password=os.getenv('DB_PASSWORD'),
+            sslmode='require'  # Adicionado para conexão segura com Render
         )
-        return conn
-    except psycopg2.Error as e:
-        print(f"Erro ao conectar ao banco de dados: {e}")
-        return None
+    except Exception as e:
+        print(f"❌ Erro de conexão: {str(e)}")
+        raise
 
 def criar_tabelas():
-    conn = connect_db()
-    if conn is None:
-        return
+    """Cria as tabelas necessárias com a nova estrutura"""
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
 
-    cur = conn.cursor()
+        # Remove tabelas antigas (apenas para desenvolvimento)
+        cur.execute("DROP TABLE IF EXISTS mensagens, usuarios, messages CASCADE")
 
-    # Cria a tabela de usuários
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS usuarios (
-            identificador VARCHAR(20) PRIMARY KEY
-        );
-    """)
+        # Cria nova estrutura de tabelas
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS messages (
+                id SERIAL PRIMARY KEY,
+                sender_number VARCHAR(20) NOT NULL,
+                message_text TEXT NOT NULL,
+                received_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                status VARCHAR(10) DEFAULT 'received'
+            );
+            
+            CREATE INDEX IF NOT EXISTS idx_sender ON messages(sender_number);
+        """)
 
-    # Cria a tabela de mensagens
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS mensagens (
-            id_mensagem SERIAL PRIMARY KEY,
-            identificador VARCHAR(20) REFERENCES usuarios(identificador),
-            texto_mensagem TEXT NOT NULL,
-            data_envio TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
+        conn.commit()
+        print("✅ Tabelas criadas com sucesso!")
+        
+    except Exception as e:
+        print(f"❌ Erro ao criar tabelas: {str(e)}")
+        conn.rollback()
+    finally:
+        cur.close()
+        conn.close()
 
-    conn.commit()
-    cur.close()
-    conn.close()
+def get_user_messages(phone_number):
+    """Busca mensagens formatadas para o comando bragfy"""
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute('''
+                SELECT 
+                    TO_CHAR(received_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo', 'DD/MM:HH24:MI'),
+                    message_text
+                FROM messages 
+                WHERE sender_number = %s
+                ORDER BY received_at DESC
+            ''', (phone_number,))
+            
+            return cur.fetchall()
+            
+    except Exception as e:
+        print(f"❌ Erro na busca: {str(e)}")
+        return None
+    finally:
+        if conn:
+            conn.close()
 
-criar_tabelas()
+def save_message(sender, text):
+    """Salva uma nova mensagem no banco"""
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute('''
+                INSERT INTO messages (sender_number, message_text)
+                VALUES (%s, %s)
+            ''', (sender, text))
+            conn.commit()
+            print(f"✅ Mensagem de {sender} salva!")
+            
+    except Exception as e:
+        print(f"❌ Erro ao salvar: {str(e)}")
+        conn.rollback()
+    finally:
+        if conn:
+            conn.close()
+
+# Verificação inicial
+if __name__ == "__main__":
+    try:
+        criar_tabelas()
+        with get_connection() as test_conn:
+            print("✅ Conexão testada com sucesso!")
+    except Exception as e:
+        print(f"🔥 Falha crítica: {str(e)}")
