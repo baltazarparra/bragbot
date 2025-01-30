@@ -1,6 +1,7 @@
 import datetime
-from flask import Flask, request, jsonify
-from database import connect_db
+import aiohttp
+from flask import Flask, Request, request, jsonify
+from database import connect_db, get_user_messages, save_message
 
 app = Flask(__name__)
 
@@ -93,3 +94,61 @@ def webhook():
     except Exception as e:
         print(f"Erro ao processar mensagem: {e}")
         return "Erro interno", 500
+    
+@app.post("/webhook")
+async def webhook(request: Request):
+    data = await request.json()
+    
+    try:
+        entry = data.get('entry', [{}])[0]
+        changes = entry.get('changes', [{}])[0]
+        value = changes.get('value', {})
+        
+        if 'messages' in value:
+            message = value['messages'][0]
+            sender = message['from']
+            text = message['text']['body'].lower()
+
+            if text == 'bragfy':
+                # Buscar mensagens do usuário
+                messages = get_user_messages(sender)
+                
+                if not messages:
+                    response_text = "📭 Você ainda não tem mensagens armazenadas!"
+                else:
+                    # Formatar tabela
+                    table_header = "📅 Data   | 💬 Mensagem\n────────────────────────────\n"
+                    table_rows = "\n".join([f"{row[0]} | {row[1]}" for row in messages])
+                    response_text = f"📋 Seu histórico de mensagens:\n\n{table_header}{table_rows}"
+
+                # Enviar resposta via WhatsApp
+                headers = {
+                    "Authorization": f"Bearer {os.getenv('WHATSAPP_TOKEN')}",
+                    "Content-Type": "application/json"
+                }
+                
+                response_data = {
+                    "messaging_product": "whatsapp",
+                    "to": sender,
+                    "text": {"body": response_text}
+                }
+                
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"https://graph.facebook.com/v16.0/{os.getenv('PHONE_NUMBER_ID')}/messages",
+                        headers=headers,
+                        json=response_data
+                    ) as response:
+                        if response.status != 200:
+                            print(f"Erro ao enviar resposta: {await response.text()}")
+                
+                return {"status": "ok"}
+
+            else:
+                # Processamento normal de mensagem
+                save_message(sender, text)
+                return {"status": "ok"}
+
+    except Exception as e:
+        print(f"Erro geral: {str(e)}")
+        return {"status": "error"}, 500
