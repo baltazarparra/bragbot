@@ -14,7 +14,7 @@ def get_connection():
             dbname=os.getenv('DB_NAME'),
             user=os.getenv('DB_USER'),
             password=os.getenv('DB_PASSWORD'),
-            sslmode='require'  # Adicionado para conexão segura com Render
+            sslmode='require'  # Conexão segura com Render
         )
     except Exception as e:
         print(f"❌ Erro de conexão: {str(e)}")
@@ -26,17 +26,14 @@ def criar_tabelas():
         conn = get_connection()
         cur = conn.cursor()
 
-        # Remove tabelas antigas (apenas para desenvolvimento)
-        cur.execute("DROP TABLE IF EXISTS mensagens, usuarios, messages CASCADE")
-
-        # Cria nova estrutura de tabelas
+        # Criação da tabela messages, se não existir
         cur.execute("""
             CREATE TABLE IF NOT EXISTS messages (
                 id SERIAL PRIMARY KEY,
                 sender_number VARCHAR(20) NOT NULL,
                 message_text TEXT NOT NULL,
                 received_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                status VARCHAR(10) DEFAULT 'received'
+                status VARCHAR(20) DEFAULT 'received'
             );
             
             CREATE INDEX IF NOT EXISTS idx_sender ON messages(sender_number);
@@ -66,7 +63,11 @@ def get_user_messages(phone_number):
                 ORDER BY received_at DESC
             ''', (phone_number,))
             
-            return cur.fetchall()
+            # Formatar as mensagens para enviar no template
+            messages = cur.fetchall()
+            formatted_messages = "\n".join([f"{row[0]} - {row[1]}" for row in messages])
+
+            return formatted_messages if messages else None
             
     except Exception as e:
         print(f"❌ Erro na busca: {str(e)}")
@@ -74,6 +75,7 @@ def get_user_messages(phone_number):
     finally:
         if conn:
             conn.close()
+
 
 def save_message(sender: str, text: str, received_at: datetime = None):
     """Salva uma nova mensagem no banco de dados"""
@@ -90,9 +92,11 @@ def save_message(sender: str, text: str, received_at: datetime = None):
             ))
             conn.commit()
             print(f"✅ Mensagem de {sender} salva!")
+            return True
     except Exception as e:
         print(f"❌ Erro ao salvar mensagem: {str(e)}")
         conn.rollback()
+        return False
     finally:
         if conn:
             conn.close()
