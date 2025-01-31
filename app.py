@@ -62,37 +62,46 @@ async def webhook():
 
     try:
         data = request.get_json()
-        if not data or 'entry' not in data:
+        if not data or 'entry' not in data or not isinstance(data['entry'], list):
             return jsonify({"status": "invalid_payload"}), 400
 
-        entry = data.get('entry', [{}])[0]
-        changes = entry.get('changes', [{}])[0]
-        value = changes.get('value', {})
-        
-        if 'messages' in value:
-            message = value['messages'][0]
-            if message.get('type') != 'text':
-                return jsonify({"status": "ignored"}), 200
+        # Iterar sobre as entradas (pode haver múltiplas)
+        for entry in data['entry']:
+            if 'changes' not in entry or not isinstance(entry['changes'], list):
+                continue  # Ignorar entradas inválidas
 
-            sender = message['from']
-            text_body = message['text']['body'].strip().lower()
-            timestamp = int(message['timestamp'])
-            received_at = datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
+            for change in entry['changes']:
+                if 'value' not in change:
+                    continue  # Ignorar mudanças inválidas
 
-            if text_body == 'bragfy':
-                messages = get_user_messages(sender)
-                
-                if not messages:
-                    response_text = "📭 Você ainda não tem mensagens armazenadas!"
-                    await send_whatsapp_template(sender, sender, response_text)  
-                else:
-                    formatted_messages = "\n".join([f"{row[0]} - {row[1]}" for row in messages])
-                    await send_whatsapp_template(sender, sender, formatted_messages)
-                
-                return jsonify({"status": "response_sent"}), 200
-            else:
-                save_message(sender=sender, text=text_body, received_at=received_at)
-                return jsonify({"status": "message_saved"}), 200
+                value = change['value']
+                if 'messages' not in value or not isinstance(value['messages'], list):
+                    continue  # Ignorar valores sem mensagens
+
+                # Processar cada mensagem
+                for message in value['messages']:
+                    if message.get('type') != 'text':
+                        continue  # Ignorar mensagens que não são texto
+
+                    sender = message.get('from')
+                    text_body = message.get('text', {}).get('body', '').strip().lower()
+                    timestamp = int(message.get('timestamp', 0))
+                    received_at = datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
+
+                    if text_body == 'bragfy':
+                        messages = get_user_messages(sender)
+
+                        if not messages:
+                            response_text = "📭 Você ainda não tem mensagens armazenadas!"
+                            await send_whatsapp_template(sender, sender, response_text)
+                        else:
+                            formatted_messages = "\n".join([f"{row[0]} - {row[1]}" for row in messages])
+                            await send_whatsapp_template(sender, sender, formatted_messages)
+
+                        return jsonify({"status": "response_sent"}), 200
+                    else:
+                        save_message(sender=sender, text=text_body, received_at=received_at)
+                        return jsonify({"status": "message_saved"}), 200
 
         return jsonify({"status": "ignored"}), 200
 
