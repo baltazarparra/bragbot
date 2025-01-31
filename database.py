@@ -1,8 +1,10 @@
 import datetime
 import os
 from dotenv import load_dotenv
-from flask import app
+from flask import Flask
 import psycopg2
+
+app = Flask(__name__)
 
 load_dotenv()
 
