@@ -1,6 +1,7 @@
 import datetime
 import os
 from dotenv import load_dotenv
+from flask import app
 import psycopg2
 
 load_dotenv()
@@ -50,7 +51,6 @@ def criar_tabelas():
         conn.close()
 
 def get_user_messages(phone_number):
-    """Busca mensagens formatadas para o comando bragfy"""
     try:
         conn = get_connection()
         with conn.cursor() as cur:
@@ -63,14 +63,11 @@ def get_user_messages(phone_number):
                 ORDER BY received_at DESC
             ''', (phone_number,))
             
-            # Formatar as mensagens para enviar no template
             messages = cur.fetchall()
-            formatted_messages = "\n".join([f"{row[0]} - {row[1]}" for row in messages])
-
-            return formatted_messages if messages else None
-            
+            app.logger.info(f"Mensagens recuperadas para {phone_number}: {messages}")  # Log das mensagens
+            return messages if messages else None
     except Exception as e:
-        print(f"❌ Erro na busca: {str(e)}")
+        app.logger.error(f"Erro na busca: {str(e)}")
         return None
     finally:
         if conn:
