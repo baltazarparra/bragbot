@@ -12,44 +12,43 @@ WHATSAPP_TOKEN = os.getenv('WHATSAPP_TOKEN')
 PHONE_NUMBER_ID = os.getenv('PHONE_NUMBER_ID', "534183026446468")
 
 async def send_whatsapp_template(to, customer_name, customer_messages):
-    """Envia uma mensagem usando um template do WhatsApp"""
+    if not to or not customer_name or not customer_messages:
+        app.logger.error("Parâmetros inválidos para envio do template.")
+        raise ValueError("Parâmetros inválidos para envio do template.")
+
     url = f"https://graph.facebook.com/v21.0/{PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
         "Content-Type": "application/json"
     }
-
     payload = {
         "messaging_product": "whatsapp",
         "to": to,
         "type": "template",
         "template": {
-            "name": "bragfy_report",  # Certifique-se de que esse é o nome exato no WhatsApp Business Manager
-            "language": { "code": "pt_BR" },
+            "name": "brag_document",
+            "language": {"code": "pt_BR"},
             "components": [{
                 "type": "body",
                 "parameters": [
-                    { "type": "text", "text": customer_name },
-                    { "type": "text", "text": customer_messages }
+                    {"type": "text", "text": customer_name},
+                    {"type": "text", "text": customer_messages}
                 ]
             }]
         }
     }
 
-    app.logger.info(f"📤 Enviando template para {to}: {customer_messages}")
-
+    app.logger.info(f"Enviando template para {to}: {customer_messages}")
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload, headers=headers) as response:
                 response_text = await response.text()
-                app.logger.info(f"📩 Resposta do WhatsApp API: {response_text}")
-
+                app.logger.info(f"Resposta do WhatsApp API: {response_text}")
                 if response.status != 200:
-                    app.logger.error(f"❌ Erro ao enviar template: {response_text}")
-
+                    app.logger.error(f"Erro ao enviar template: {response_text}")
                 return response_text
     except Exception as e:
-        app.logger.error(f"🔥 Falha no envio do template: {str(e)}")
+        app.logger.error(f"Falha no envio do template: {str(e)}")
         raise
 
 
@@ -62,34 +61,45 @@ async def webhook():
 
     try:
         data = request.get_json()
+        app.logger.info(f"Dados recebidos: {data}")  # Log dos dados recebidos
+
         if not data or 'entry' not in data or not isinstance(data['entry'], list):
+            app.logger.error("Payload inválido ou ausente.")
             return jsonify({"status": "invalid_payload"}), 400
 
-        # Iterar sobre as entradas (pode haver múltiplas)
         for entry in data['entry']:
+            app.logger.info(f"Processando entrada: {entry}")  # Log da entrada
             if 'changes' not in entry or not isinstance(entry['changes'], list):
-                continue  # Ignorar entradas inválidas
+                app.logger.warning("Entrada sem mudanças válidas.")
+                continue
 
             for change in entry['changes']:
+                app.logger.info(f"Processando mudança: {change}")  # Log da mudança
                 if 'value' not in change:
-                    continue  # Ignorar mudanças inválidas
+                    app.logger.warning("Mudança sem valor válido.")
+                    continue
 
                 value = change['value']
                 if 'messages' not in value or not isinstance(value['messages'], list):
-                    continue  # Ignorar valores sem mensagens
+                    app.logger.warning("Valor sem mensagens válidas.")
+                    continue
 
-                # Processar cada mensagem
                 for message in value['messages']:
+                    app.logger.info(f"Processando mensagem: {message}")  # Log da mensagem
                     if message.get('type') != 'text':
-                        continue  # Ignorar mensagens que não são texto
+                        app.logger.info("Ignorando mensagem não textual.")
+                        continue
 
                     sender = message.get('from')
                     text_body = message.get('text', {}).get('body', '').strip().lower()
                     timestamp = int(message.get('timestamp', 0))
                     received_at = datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
 
+                    app.logger.info(f"Mensagem recebida de {sender}: {text_body}")  # Log da mensagem processada
+
                     if text_body == 'bragfy':
                         messages = get_user_messages(sender)
+                        app.logger.info(f"Mensagens recuperadas para {sender}: {messages}")  # Log das mensagens
 
                         if not messages:
                             response_text = "📭 Você ainda não tem mensagens armazenadas!"
@@ -104,7 +114,7 @@ async def webhook():
                         return jsonify({"status": "message_saved"}), 200
 
         return jsonify({"status": "ignored"}), 200
-
+    
     except Exception as e:
         app.logger.error(f"Erro no webhook: {str(e)}")
         return jsonify({"status": "error", "details": str(e)}), 500
