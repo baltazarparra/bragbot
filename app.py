@@ -13,30 +13,38 @@ PHONE_NUMBER_ID = os.getenv('PHONE_NUMBER_ID', "534183026446468")
 
 async def send_whatsapp_message(to, text):
     """Envia mensagens via API do WhatsApp"""
-    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+    url = f"https://graph.facebook.com/v21.0/{PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
         "Content-Type": "application/json"
     }
-    
+
     payload = {
         "messaging_product": "whatsapp",
-        "recipient_type": "individual",
         "to": to,
-        "type": "text",
-        "text": {"body": text}
+        "type": "template",
+        "template": {
+            "name": "hello_world",
+            "language": { "code": "en_US" }
+        }
     }
+
+    app.logger.info(f"📤 Enviando mensagem para {to}: {text}")
 
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload, headers=headers) as response:
+                response_text = await response.text()
+                app.logger.info(f"📩 Resposta do WhatsApp API: {response_text}")
+
                 if response.status != 200:
-                    error = await response.text()
-                    app.logger.error(f"Erro ao enviar: {error}")
-                return await response.json()
+                    app.logger.error(f"❌ Erro ao enviar mensagem: {response_text}")
+
+                return response_text
     except Exception as e:
-        app.logger.error(f"Falha no envio: {str(e)}")
+        app.logger.error(f"🔥 Falha no envio: {str(e)}")
         raise
+
 
 @app.route("/webhook", methods=["GET", "POST"])
 async def webhook():
