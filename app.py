@@ -11,8 +11,8 @@ VERIFY_TOKEN = os.getenv('VERIFY_TOKEN', "meu_token_secreto_123!@#")
 WHATSAPP_TOKEN = os.getenv('WHATSAPP_TOKEN')
 PHONE_NUMBER_ID = os.getenv('PHONE_NUMBER_ID', "534183026446468")
 
-async def send_whatsapp_template(to, customer_name, customer_messages):
-    if not to or not customer_name or not customer_messages:
+async def send_whatsapp_template(to, customer_messages):
+    if not to or not customer_messages:
         app.logger.error("Parâmetros inválidos para envio do template.")
         raise ValueError("Parâmetros inválidos para envio do template.")
 
@@ -31,7 +31,6 @@ async def send_whatsapp_template(to, customer_name, customer_messages):
             "components": [{
                 "type": "body",
                 "parameters": [
-                    {"type": "text", "text": customer_name},
                     {"type": "text", "text": customer_messages}
                 ]
             }]
